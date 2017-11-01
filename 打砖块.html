@@ -1,0 +1,179 @@
+  <!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>打砖块</title>
+</head>
+<style>
+    .canvasCla {
+        border: 1px solid black;
+    }
+</style>
+<body>
+    <div>
+        <canvas id="id-canvas" width="400" height="300" class="canvasCla"></canvas>
+        <hr>
+        <input type="range" id="id-range-input">
+        <hr>
+        <ul>
+            <li>点击 f 发射小球</li>
+            <li>点击 p 暂停</li>
+            <li>暂停时点击小球可以拖拽</li>
+        </ul>
+    </div>
+
+    <script src="js/level.js"></script>
+    <script src="js/paddle.js"></script>
+    <script src="js/information.js"></script>
+    <script src="js/block.js"></script>
+    <script src="js/guagame.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ball.js"></script>
+    <script src="js/sence/sence_title.js"></script>
+    <script src="js/sence/sence.js"></script>
+    <script src="js/sence/sence_end.js"></script>
+    <script src="js/main.js"></script>
+<script>
+    /*通用的知识点
+    * 1. 游戏的连贯效果是这样做出来的
+    *       1. 点击事件发生后，先清除画布，
+    *       2. 再把把画布画上去，只是画布的内容移动一下坐标。
+    *       3. 一般一秒钟刷新60次，人眼就无法察觉了；
+    * */
+
+
+
+    /*构建流程
+    * 1. 添加一个canvas标签，并设定样式
+    * 2. 给这个canvas标签添加图片，并设定位置
+    * 3. 当点击a时，挡板向左移动，当点击b时挡板向又移动；
+    *
+    * *********在默认情况下keydown事件的刷新频率是一秒钟几次.这显然是不够的,会非常晃眼;
+    * 为了能够控制canvas的刷新频率,我们直接做一个setInterval,让canvas画布一秒钟刷新30次， 每一次的刷新的过程是
+    *           1. clear清楚画布中的所有内容;
+    *           2. update,更新画布中的数据，
+    *           3. draw，把画布中的内容再画上去；
+    *
+    *
+    * 4. 把keydown的点击事件,由控制canvas,改成控制canvas的状态;
+    * 5. 当keydown是a时,启动left状态,b时,启动right状态;
+    * 6. 在setInterval中判断如果left,那么图像向左移动
+    *
+    * ********打包封装************
+    * 7. 把整块代码都放在一个入口函数里
+    * 8. 把挡板对象paddle打包封装.
+    * 9. 与挡板相关的属性,作为paddle的属性保存,与挡板相关的逻辑作为paddle的函数存在,降低挡板与其他对象的耦合度;
+    * 10. 简单来说要修改paddle的属性的话,应该放在paddle的方法里,而不是让别人去修改,应该自己paddle对象修改;
+    * 10.5 所以向左移,向右移做成两个paddle的函数.moveLeft和moveRight;
+    *
+    * 11. 声明一个画布对象game.把setInterval和canvas放进去,还有画布的数据更新和画布清除,画布显示update,clear,draw;
+    *
+    * 12. 如果有很多按键,每一个按键都要用window.addEventListener去添加事件函数,这样复用度太低了.
+    * 13. 现在我希望按下某个按键就执行一段设定好的代码.那么,按下按键状态改变(一个状态对象),执行代码事件对象;
+    *
+    * 14. 挡板的移动是我们自己通过a,d按键调用moveLeft实现的，但是撞球的运动是不需要人去操控的，是自己动的，那么就在update里面调用ball.move
+    * 15. 简单来说update函数里面放的的不需要人主动去操作的自动的动画运行。比如撞球的飞行。道具的运行，分值的增加。等；
+    *
+    *
+    * 16 砖块
+    *   1. 砖块是多个要用blocks数组挨个引入，挨个draw画上去；
+    *   2. 在update函数里进行砖块和小球的碰撞判断
+    *   3. 碰撞了，砖块消失，小球更改方向。
+    *   4. 碰撞函数在砖块上写，在在小球上写，反弹的函数，
+    *   5. 在update里判断如果碰撞，则反弹，消失；
+    *
+    *17 拆分，把各个功能对象放到不同的函数中去，ball.js,block.js,guagame.js,paddle.js,utils.js(工具函数)，level.js（关卡）(完成）
+    * 18 暂停功能，当点击p的时候。update不再执行；(完成）
+    * 19 关卡功能，当点击不同的数字时，跳到不同的关卡。 （完成）
+    *       1. 不同的关卡的数据用字符串形式单独存放，引入的时候解析一下即可； （完成）
+    *       2. 不同的关卡砖块不同，生命不同；      (完成)
+    *
+    * 20 把暂停，关卡，都放到debug功能里面        (完成）
+    * 21 加上调整帧率的功能，能直接动态的调整帧率；  （完成）；
+    *
+    *
+    * 23 分数
+    * 24 预加载；
+    *
+    * 25 添加场景功能
+    *   1. 再加一个sence。js文件用来保存关卡1的场景；（完成）
+    *       1. 在sence。js文件中与场景相关的 元素，各个对象，事件都放到 sence里面；（完成）
+    *   2. 添加一个sence—end。js文件来保存gameover的场景；（完成）
+    *
+    *  26 面向对象
+    *   1. 添加title场景,按k开始游戏(完成)
+    *   2. 当游戏结束时,提示按r跳到开始界面(完成)
+    *   2.5 结构修改 (完成)
+    *           1. 现在的sence函数并不返回一个有的对象,而是只是执行了一个关于game的函数.
+    *           2. 把clear,update,draw放在sence上,当切换场景的时候顺便把sence赋值给game.sence;
+    *           3. 而game.draw = game.sence.draw;以此来传递让sence函数能够返回一个可用当对象,用于提取类;
+    *   3. 把场景对象重构成面向对象当形(完成)
+    *       1. 提取一个父类,
+    *       2. 根据不同当场景写不同当子类,,子类继承自父类;
+    *   4. 把guagame对象重构成面向对象当形式(完成)
+    * */
+
+
+
+
+    var Const = {
+        width: 400,
+        height: 300,
+        paused: false,
+        fps: 60,
+        sence: null,
+        senceTitle: null,
+        senceEnd: null,
+        sence_num: 1,
+        sence_all: 0
+    }
+
+    var blocks = [];
+    var levels = JSON.parse(levels);
+
+    var enabledebug = function(enable) {
+        if (!enable) {
+            return ;
+        }
+        window.addEventListener("keydown", function(event) {
+            var key = event.key;
+            if (key === "p") {
+                Const.paused = !Const.paused;
+            } else if ("123456789".indexOf(key) >= 0 ) {
+                blocks = loadleve(key);
+            }
+        })
+
+        document.querySelector("#id-range-input").addEventListener("input", function(event) {
+            log(event);
+            Const.fps = String(event.target.value + 1);
+        })
+
+    }
+
+    var loadleve = function(n) {
+        var n = n - 1;
+        var leve = levels[n];
+        var blocks = [];
+        for(var i=0; i<leve.length; i++) {
+            var p = leve[i];
+            var block = Block(p);
+            blocks.push(block);
+        }
+        Const.sence_all = levels.length + 1;
+        
+        blocks.life  = 0
+        for(var i = 0 ; i < blocks.length ; i++) {
+            var b = blocks[i];
+            blocks.life += b.life || 1
+        }
+        // blocks.life = blocks.length
+        return blocks;
+    }
+
+
+
+    __main()
+</script>
+</body>
+</html>
